@@ -1,11 +1,9 @@
-﻿using System.Data.SqlTypes;
-using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using WebApplication1.Modules;
 using WebApplication1.Modules.DTOs;
 
-namespace WebApplication1.Properties.Controllers;
+namespace WebApplication1.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
