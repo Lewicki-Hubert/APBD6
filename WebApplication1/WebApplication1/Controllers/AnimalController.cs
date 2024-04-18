@@ -18,55 +18,79 @@ public class AnimalController : ControllerBase
 
 
     [HttpGet]
-    public IActionResult GetAnimals()
+    public IActionResult GetAnimals(string orderBy = "name")
     {
-        SqlConnection connection = new SqlConnection(_configuration.GetConnectionString("Default"));
+        using var connection = new SqlConnection(_configuration.GetConnectionString("Default"));
         connection.Open();
-
-        // Definiujemy command
-        SqlCommand command = new SqlCommand();
-        command.Connection = connection;
-        command.CommandText = "SELECT * FROM ANIMAL";
-
-        //wykonanie zapytania
+        string query = $"SELECT * FROM Animal ORDER BY {orderBy}";
+        using var command = new SqlCommand(query, connection);
         var reader = command.ExecuteReader();
 
-        List<Animal> animals = new List<Animal>();
-
-        int idAnimalOrdinal = reader.GetOrdinal("IdAnimal");
-        int nameOrdinal = reader.GetOrdinal("Name");
-
-        reader.Read();
+        var animals = new List<Animal>();
         while (reader.Read())
         {
-            animals.Add(new Animal()
-            {
-                IdAnimal = reader.GetInt32(idAnimalOrdinal),
-                Name = reader.GetString(nameOrdinal)
-            });
+            animals.Add(new Animal(
+                reader.GetInt32(reader.GetOrdinal("IdAnimal")),
+                reader.GetString(reader.GetOrdinal("Name")),
+                reader.GetString(reader.GetOrdinal("Description")),
+                reader.GetString(reader.GetOrdinal("Category")),
+                reader.GetString(reader.GetOrdinal("Area"))
+            ));
         }
 
-        return Ok();
+        connection.Close();
+        return Ok(animals);
     }
 
 
     [HttpPost]
-    public IActionResult AddAnimals(AddAnimal addAnimal)
+    public IActionResult AddAnimal([FromBody] AddAnimal addAnimal)
     {
-        SqlConnection connection = new SqlConnection(_configuration.GetConnectionString("Default"));
+        using var connection = new SqlConnection(_configuration.GetConnectionString("Default"));
         connection.Open();
+        string query = "INSERT INTO Animal (Name, Description) VALUES (@Name, @Description)";
+        using var command = new SqlCommand(query, connection);
+        command.Parameters.AddWithValue("@Name", addAnimal.Name);
+        command.Parameters.AddWithValue("@Description", addAnimal.Description ?? string.Empty);
 
-        // Definiujemy command
-        using SqlCommand command = new SqlCommand();
-        command.Connection = connection;
-        command.CommandText = "INSERT INTO ANIMAL VALUES (@animalName, '','','' )";
-        command.Parameters.AddWithValue("@animalName", addAnimal.Name);
-        
-        // Wykonanie zamykanie
         command.ExecuteNonQuery();
-        
-        // _repository
-        
-        return Created("", null);
+
+        return Created($"api/animals/{addAnimal.Name}", addAnimal);
     }
+    
+    
+    [HttpPut("{id}")]
+    public IActionResult UpdateAnimal(int id, [FromBody] AddAnimal updateAnimal)
+    {
+        using var connection = new SqlConnection(_configuration.GetConnectionString("Default"));
+        connection.Open();
+        string query = "UPDATE Animal SET Name = @Name, Description = @Description WHERE IdAnimal = @Id";
+        using var command = new SqlCommand(query, connection);
+        command.Parameters.AddWithValue("@Id", id);
+        command.Parameters.AddWithValue("@Name", updateAnimal.Name);
+        command.Parameters.AddWithValue("@Description", updateAnimal.Description ?? string.Empty);
+
+        int affected = command.ExecuteNonQuery();
+        if (affected == 0)
+            return NotFound();
+
+        return NoContent();
+    }
+    
+    [HttpDelete("{id}")]
+    public IActionResult DeleteAnimal(int id)
+    {
+        using var connection = new SqlConnection(_configuration.GetConnectionString("Default"));
+        connection.Open();
+        string query = "DELETE FROM Animal WHERE IdAnimal = @Id";
+        using var command = new SqlCommand(query, connection);
+        command.Parameters.AddWithValue("@Id", id);
+
+        int affected = command.ExecuteNonQuery();
+        if (affected == 0)
+            return NotFound();
+
+        return NoContent();
+    }
+    
 }
